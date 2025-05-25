@@ -1,0 +1,206 @@
+### Bash Script for Initial Setup
+
+bash
+# Create and navigate to project directory
+mkdir employee-leave-management
+cd employee-leave-management
+
+# Install Laravel via Composer (assuming Composer is installed)
+composer create-project --prefer-dist laravel/laravel .
+
+# Navigate into the project folder
+cd employee-leave-management
+
+# Initialize Git
+git init
+
+# Set up .gitignore to exclude vendor and environment files
+echo "/vendor" >> .gitignore
+echo ".env" >> .gitignore
+
+# Commit initial setup
+git add .
+git commit -m "Initial Laravel project setup"
+
+# Set up database configuration
+touch .env
+echo "DB_CONNECTION=mysql" >> .env
+echo "DB_HOST=127.0.0.1" >> .env
+echo "DB_PORT=3306" >> .env
+echo "DB_DATABASE=Laravel Leave-management" >> .env
+echo "DB_USERNAME=Ahmad" >> .env
+echo "DB_PASSWORD=password" >> .env
+
+# Create migration for users and leave_requests using artisan
+php artisan make:migration create_users_table
+php artisan make:migration create_leave_requests_table
+
+# Update migrations
+echo "<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class CreateUsersTable extends Migration
+{
+    public function up()
+    {
+        Schema::create('users', function (Blueprint \$table) {
+            \$table->id();
+            \$table->string('name');
+            \$table->string('email')->unique();
+            \$table->string('password');
+            \$table->string('role');  // employee or admin
+            \$table->timestamps();
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('users');
+    }
+}" > database/migrations/$(date +%Y_%m_%d)_create_users_table.php
+
+echo "<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class CreateLeaveRequestsTable extends Migration
+{
+    public function up()
+    {
+        Schema::create('leave_requests', function (Blueprint \$table) {
+            \$table->id();
+            \$table->unsignedBigInteger('user_id');
+            \$table->date('start_date');
+            \$table->date('end_date');
+            \$table->string('status')->default('Pending'); // Pending, Approved, Rejected
+            \$table->timestamps();
+
+            \$table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+
+Routes (web.php)
+
+Route::middleware(['auth'])->group(function () {
+  Route::resource('leaves', LeaveRequestController::class); 
+  Route::post('leaves/{id}/approve', 
+  [LeaveRequestController::class, 'approve']); 
+  Route::post('leaves/{id}/reject', 
+  [LeaveRequestController::class, 'reject']); }); 
+
+    }
+public function store(Request $request) { 
+LeaveRequest::create([ 
+           'user_id' => auth()->id(), 
+           'leave_type' =>
+   $request->leave_type, 'start_date' =>
+   $request->start_date, 'end_date' => $request->end_date, 
+              'reason' => $request->reason, 
+              'status' => 'pending',
+ ]); } 
+ 
+   public function approve($id) {
+     $leave = LeaveRequest::findOrFail($id);
+     $leave->update(['status' => 'approved']); 
+  }
+   public function reject(Request $request, $id) {
+     $leave = LeaveRequest::findOrFail($id); 
+     $leave->update(['status' => 'rejected', 'admin_comment' => $request->admin_comment]); 
+  } 
+
+  public function down()
+    {
+        Schema::dropIfExists('leave_requests');
+    }
+}" > database/migrations/$(date +%Y_%m_%d)_create_leave_requests_table.php
+
+# Run migrations
+php artisan migrate
+
+# Create User and LeaveRequest models
+php artisan make:model User
+php artisan make:model LeaveRequest
+
+# Create Auth setup
+php artisan make:auth
+
+# Commit database setup
+git add .
+git commit -m "Set up database migrations and models"
+
+# Set up seeders for initial data
+php artisan make:seeder UserSeeder
+php artisan make:seeder LeaveRequestSeeder
+
+# Populate seeders (simplified for brevity)
+echo "<?php
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\User;
+
+class UserSeeder extends Seeder
+{
+    public function run()
+    {
+       User::create([
+            'name' => 'Ahmad Omari',
+            'email' => 'Ahmad@limitless-tech.ai',
+            'password' => Hash::make('password'),
+            'role' => 'employee',
+            'name' => 'Admin User', 
+            'email' => 'admin@ limitless-tech.ai,
+            'password' => Hash::make('password'),
+            'role' => 'admin', ]); 
+    }
+
+}" > database/seeders/UserSeeder.php
+
+echo "<?php
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\LeaveRequest;
+
+class LeaveRequestSeeder extends Seeder
+{
+    public function run()
+    {
+        LeaveRequest::create([
+            'user_id' => 1,
+            'start_date' => '2025-06-01',
+            'end_date' => '2025-06-03',
+            'status' => 'Pending',
+        ]);
+    }
+}" > database/seeders/LeaveRequestSeeder.php
+
+# Register seeders in DatabaseSeeder
+echo "<?php
+namespace Database\Seeders;
+            DB::table('departments')->insert ([ 
+            ['name' => 'IT'],
+            ['name' => 'HR'],
+            ]); 
+
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    public function run()
+    {
+        \$this->call([
+            UserSeeder::class,
+            LeaveRequestSeeder::class,
+        ]);
+    }
+}" > database/seeders/DatabaseSeeder.php
+
+# Run seeders
+php artisan db:seed
+
+# Commit seed and seeder setup
+git add .
+git commit -m "Add seeders for testing data"
